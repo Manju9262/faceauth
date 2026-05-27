@@ -1,0 +1,42 @@
+# Virtual Environment
+venv/
+.venv/
+env/
+ENV/
+
+# Python caching
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Node.js dependencies
+node_modules/
+dist/
+build/
+.svelte-kit/
+.next/
+
+# Environment files (sensitive keys)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Databases
+*.db
+*.sqlite3
+
+# Local storage and uploaded files
+backend/static/uploads/*
+!backend/static/uploads/.gitkeep
+backend/static/uploads/debug_received.jpg
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Powershell wrapper (environment specific)
+powershell.cmd
