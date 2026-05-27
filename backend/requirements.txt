@@ -17,3 +17,5 @@ ml-dtypes==0.5.4
 networkx==3.6.1
 pillow==12.2.0
 tifffile==2026.5.15
+email-validator==2.2.0
+
