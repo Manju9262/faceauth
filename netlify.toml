@@ -1,0 +1,11 @@
+# Netlify configuration at root pointing to frontend folder
+[build]
+  base = "frontend"
+  publish = "dist"
+  command = "npm run build"
+
+# Route all requests to index.html for Single Page App routing support
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
