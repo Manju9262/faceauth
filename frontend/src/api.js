@@ -1,6 +1,6 @@
 // API Client Wrapper for ZepIris Attendance System
 
-const API_BASE = ""; // Uses Vite development proxy
+const API_BASE = import.meta.env.VITE_API_URL || ""; // Fallback to Vite dev proxy if variable is not set
 
 function getHeaders() {
   const token = localStorage.getItem("zepiris_token");
