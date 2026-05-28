@@ -419,6 +419,16 @@ def get_admin_dashboard(current_user: dict = Depends(get_current_user)):
         "database_type": db.get_db_type()
     }
 
+@app.get("/api/admin/logs")
+def get_all_admin_logs(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Access denied. Admin access only.")
+    logs = db.get_attendance_logs(limit=1000) # Fetch up to 1000 logs for history export
+    return {
+        "status": "success",
+        "logs": logs
+    }
+
 @app.get("/api/admin/employees")
 def get_admin_employees(search: Optional[str] = None, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":

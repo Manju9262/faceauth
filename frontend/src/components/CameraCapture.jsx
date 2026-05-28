@@ -7,6 +7,12 @@ export default function CameraCapture({ onCapture, buttonText = "Capture Photo",
   const [stream, setStream] = useState(null);
   const streamRef = useRef(null);
   const [capturedImg, setCapturedImg] = useState(null);
+  const capturedImgRef = useRef(null);
+
+  const updateCapturedImg = (val) => {
+    setCapturedImg(val);
+    capturedImgRef.current = val;
+  };
   
   // MediaPipe state
   const [mpLoaded, setMpLoaded] = useState(false);
@@ -63,7 +69,7 @@ export default function CameraCapture({ onCapture, buttonText = "Capture Photo",
         });
 
         faceDetectionInstance.onResults((results) => {
-          if (!active || capturedImg) return;
+          if (!active || capturedImgRef.current) return;
           processFaceResults(results);
         });
 
@@ -80,14 +86,14 @@ export default function CameraCapture({ onCapture, buttonText = "Capture Photo",
 
     return () => {
       active = false;
-      stopCamera(cameraInstance);
+      stopCamera();
       if (faceDetectionInstance) {
         try {
           faceDetectionInstance.close();
         } catch (e) {}
       }
     };
-  }, [capturedImg]);
+  }, []);
 
   const startCamera = async () => {
     try {
@@ -117,7 +123,7 @@ export default function CameraCapture({ onCapture, buttonText = "Capture Photo",
         if (window.Camera && activeDetectionRef.current && !mpError) {
           const cameraInstance = new window.Camera(videoRef.current, {
             onFrame: async () => {
-              if (videoRef.current && activeDetectionRef.current && !capturedImg) {
+              if (videoRef.current && activeDetectionRef.current && !capturedImgRef.current) {
                 try {
                   await activeDetectionRef.current.send({ image: videoRef.current });
                 } catch (e) {
@@ -268,16 +274,16 @@ export default function CameraCapture({ onCapture, buttonText = "Capture Photo",
     // Convert to base64 jpeg
     const dataUrl = captureCanvas.toDataURL('image/jpeg', 0.90);
     
-    setCapturedImg(dataUrl);
+    updateCapturedImg(dataUrl);
     stopCamera();
     setValidationMsg("Selfie captured successfully! Confirm or retake.");
   };
 
   const handleRetake = () => {
-    setCapturedImg(null);
+    updateCapturedImg(null);
     setIsFaceValid(false);
     setValidationMsg("Position your face inside the frame...");
-    // startCamera will run automatically via the useEffect trigger
+    startCamera();
   };
 
   const handleConfirm = () => {

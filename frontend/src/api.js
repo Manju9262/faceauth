@@ -106,5 +106,13 @@ export const api = {
       body: JSON.stringify({ threshold }),
     });
     return handleResponse(response);
+  },
+
+  async getAdminLogs() {
+    const response = await fetch(`${API_BASE}/api/admin/logs`, {
+      method: "GET",
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
   }
 };

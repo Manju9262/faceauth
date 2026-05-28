@@ -211,6 +211,79 @@ export default function App() {
     showToast("Logged out successfully.", "info");
   };
 
+  const handleExportCSV = async (type) => {
+    setLoadingMsg("Generating CSV export report...");
+    setLoading(true);
+    try {
+      let csvContent = "";
+      let filename = "";
+
+      if (type === 'roster') {
+        filename = `zepiris_employee_roster_${new Date().toISOString().split('T')[0]}.csv`;
+        csvContent = "Employee ID,Name,Email,Registration Date,Active Hours Today\n";
+        adminEmployees.forEach(emp => {
+          const hours = emp.active_hours_today !== undefined ? emp.active_hours_today : 0;
+          csvContent += `"${emp.id}","${emp.name.replace(/"/g, '""')}","${emp.email}","${emp.created_at}","${hours}"\n`;
+        });
+      } 
+      else if (type === 'active_shifts') {
+        filename = `zepiris_active_shifts_${new Date().toISOString().split('T')[0]}.csv`;
+        csvContent = "Employee ID,Name,Email,Status,Active Hours Today\n";
+        
+        const response = await api.getAdminLogs();
+        const logs = response.logs || [];
+        const todayStr = new Date().toISOString().split('T')[0];
+        
+        const latestSuccessLog = {};
+        logs.forEach(log => {
+          if (log.status === 'success' && log.timestamp.startsWith(todayStr)) {
+            if (!latestSuccessLog[log.employee_id]) {
+              latestSuccessLog[log.employee_id] = log;
+            }
+          }
+        });
+        
+        adminEmployees.forEach(emp => {
+          const lastLog = latestSuccessLog[emp.id];
+          const isCurrentlyCheckedIn = lastLog && lastLog.action === 'Check In';
+          if (isCurrentlyCheckedIn) {
+            const hours = emp.active_hours_today !== undefined ? emp.active_hours_today : 0;
+            csvContent += `"${emp.id}","${emp.name.replace(/"/g, '""')}","${emp.email}","Checked In","${hours}"\n`;
+          }
+        });
+        
+        if (csvContent === "Employee ID,Name,Email,Status,Active Hours Today\n") {
+          csvContent += ",,No employees currently active on shift,,\n";
+        }
+      } 
+      else if (type === 'attendance_history') {
+        filename = `zepiris_attendance_history_${new Date().toISOString().split('T')[0]}.csv`;
+        const response = await api.getAdminLogs();
+        const logs = response.logs || [];
+        
+        csvContent = "Log ID,Employee Name,Employee Email,Timestamp (UTC),Action,Similarity Score,Status\n";
+        logs.forEach(log => {
+          csvContent += `"${log.id}","${log.employee_name.replace(/"/g, '""')}","${log.employee_email}","${log.timestamp}","${log.action || 'Check In'}","${(log.similarity_score * 100).toFixed(1)}%","${log.status}"\n`;
+        });
+      }
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast("Report downloaded successfully!", "success");
+    } catch (err) {
+      showToast("Failed to generate report: " + err.message, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Helper date formatting
   const formatDate = (isoString) => {
     try {
@@ -626,6 +699,39 @@ export default function App() {
       {view === 'admin_dashboard' && adminData && (
         <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', borderBottom: '1px solid var(--border-glass)', paddingBottom: '1rem' }}>
+            <div>
+              <h2 style={{ fontSize: '1.5rem' }}>Management Console</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Monitor biometric attendance, thresholds, and export shift logs</p>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <select 
+                onChange={(e) => {
+                  if (e.target.value) {
+                    handleExportCSV(e.target.value);
+                    e.target.value = ""; 
+                  }
+                }}
+                defaultValue=""
+                style={{ 
+                  padding: '0.6rem 1rem', 
+                  fontSize: '0.85rem', 
+                  width: 'auto', 
+                  background: 'var(--primary-light)', 
+                  color: 'var(--text-main)', 
+                  borderColor: 'rgba(99, 102, 241, 0.3)',
+                  cursor: 'pointer' 
+                }}
+              >
+                <option value="" disabled>📥 Export Logs & Reports</option>
+                <option value="roster">Employee Roster & Working Hours (Today)</option>
+                <option value="active_shifts">Active Shifts (Checked In Today)</option>
+                <option value="attendance_history">Full Attendance History Logs</option>
+              </select>
+            </div>
+          </div>
+
           {/* Header Analytics Cards Row */}
           <div className="dashboard-grid">
             <div className="glass-panel analytics-card">
