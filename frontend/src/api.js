@@ -23,6 +23,10 @@ async function handleResponse(response) {
 }
 
 export const api = {
+  getApiBaseUrl() {
+    return API_BASE;
+  },
+
   // Authentication
   async login(email, password, role) {
     const response = await fetch(`${API_BASE}/api/auth/login`, {

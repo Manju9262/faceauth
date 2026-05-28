@@ -48,6 +48,15 @@ export default function App() {
   const [loadingMsg, setLoadingMsg] = useState('Processing...');
   const [confirmationData, setConfirmationData] = useState(null);
 
+  const getFullUrl = (url) => {
+    if (!url) return "";
+    if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) {
+      return url;
+    }
+    const base = api.getApiBaseUrl ? api.getApiBaseUrl() : "";
+    return `${base}${url}`;
+  };
+
   // Auto load logged-in user on start
   useEffect(() => {
     const user = api.getCurrentUser();
@@ -513,7 +522,7 @@ export default function App() {
             <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
               <div style={{ position: 'relative', marginBottom: '1.25rem' }}>
                 <img 
-                  src={employeeData.profile.selfie_url} 
+                  src={getFullUrl(employeeData.profile.selfie_url)} 
                   alt="Registered Face" 
                   className="avatar-lg"
                   onError={(e) => {
@@ -625,7 +634,7 @@ export default function App() {
                             <td>
                               {log.selfie_url ? (
                                 <img 
-                                  src={log.selfie_url} 
+                                  src={getFullUrl(log.selfie_url)} 
                                   alt="Capture" 
                                   className="avatar"
                                   onError={(e) => {
@@ -909,7 +918,7 @@ export default function App() {
                     {adminEmployees.map(emp => (
                       <div key={emp.id} className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem' }}>
                         <img 
-                          src={emp.selfie_url} 
+                          src={getFullUrl(emp.selfie_url)} 
                           alt={emp.name} 
                           className="avatar" 
                           onError={(e) => {
@@ -976,7 +985,7 @@ export default function App() {
                           <td>
                             {log.selfie_url ? (
                               <img 
-                                src={log.selfie_url} 
+                                src={getFullUrl(log.selfie_url)} 
                                 alt="Capture" 
                                 className="avatar"
                                 style={{
@@ -985,7 +994,7 @@ export default function App() {
                                 }}
                                 onClick={(e) => {
                                   // Expand visual preview
-                                  window.open(log.selfie_url, '_blank');
+                                  window.open(getFullUrl(log.selfie_url), '_blank');
                                 }}
                                 onError={(e) => {
                                   e.target.src = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=40&q=80";
