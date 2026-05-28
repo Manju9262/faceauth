@@ -513,7 +513,7 @@ export default function App() {
       )}
 
       {/* 3. EMPLOYEE DASHBOARD */}
-      {view === 'employee_dashboard' && employeeData && (
+      {view === 'employee_dashboard' && employeeData && employeeData.profile && (
         <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1.5rem' }} className="dashboard-grid">
@@ -677,6 +677,16 @@ export default function App() {
         </div>
       )}
 
+      {view === 'employee_dashboard' && (!employeeData || !employeeData.profile) && (
+        <div className="glass-panel fade-in" style={{ textAlign: 'center', padding: '4rem 2rem', maxWidth: '600px', margin: '4rem auto', width: '100%' }}>
+          <RefreshCw className="animate-spin" size={48} style={{ color: 'var(--primary)', margin: '0 auto 1.5rem' }} />
+          <h3>Loading Employee Dashboard...</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.5rem' }}>
+            Establishing secure connection with the facial authentication server. Please wait...
+          </p>
+        </div>
+      )}
+
       {/* 4. MARK ATTENDANCE CAM VIEW */}
       {view === 'mark_attendance' && (
         <div className="glass-panel fade-in" style={{ maxWidth: '550px', margin: '0 auto', width: '100%', textAlign: 'center' }}>
@@ -705,7 +715,7 @@ export default function App() {
       )}
 
       {/* 5. ADMIN DASHBOARD */}
-      {view === 'admin_dashboard' && adminData && (
+      {view === 'admin_dashboard' && adminData && adminData.stats && (
         <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', borderBottom: '1px solid var(--border-glass)', paddingBottom: '1rem' }}>
@@ -1042,7 +1052,17 @@ export default function App() {
           </div>
         </div>
       )}
-      
+
+      {view === 'admin_dashboard' && (!adminData || !adminData.stats) && (
+        <div className="glass-panel fade-in" style={{ textAlign: 'center', padding: '4rem 2rem', maxWidth: '600px', margin: '4rem auto', width: '100%' }}>
+          <RefreshCw className="animate-spin" size={48} style={{ color: 'var(--primary)', margin: '0 auto 1.5rem' }} />
+          <h3>Loading Admin Dashboard...</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.5rem' }}>
+            Fetching analytics metrics and daily rosters. Please wait...
+          </p>
+        </div>
+      )}
+
       {/* 6. ATTENDANCE CONFIRMATION PANEL */}
       {view === 'attendance_confirmation' && confirmationData && (
         <div className="glass-panel confirmation-card fade-in" style={{ maxWidth: '450px', margin: '4rem auto', width: '100%', textAlign: 'center' }}>

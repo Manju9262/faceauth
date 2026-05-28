@@ -14,7 +14,19 @@ function getHeaders() {
 }
 
 async function handleResponse(response) {
-  const data = await response.json().catch(() => ({}));
+  const text = await response.text();
+  const trimmed = text.trim();
+  if (trimmed.startsWith("<!DOCTYPE") || trimmed.startsWith("<html")) {
+    throw new Error("API server returned HTML instead of JSON. Please verify that VITE_API_URL is configured in your Netlify site settings.");
+  }
+  
+  let data = {};
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    data = {};
+  }
+  
   if (!response.ok) {
     const errorMsg = data.detail || "An unexpected error occurred.";
     throw new Error(errorMsg);
