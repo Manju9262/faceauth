@@ -130,5 +130,13 @@ export const api = {
       headers: getHeaders(),
     });
     return handleResponse(response);
+  },
+
+  async getDiagnostics() {
+    const response = await fetch(`${API_BASE}/api/diagnostics`, {
+      method: "GET",
+      headers: getHeaders(),
+    });
+    return handleResponse(response);
   }
 };

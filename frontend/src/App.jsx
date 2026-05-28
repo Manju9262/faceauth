@@ -48,6 +48,23 @@ export default function App() {
   const [loadingMsg, setLoadingMsg] = useState('Processing...');
   const [confirmationData, setConfirmationData] = useState(null);
 
+  const [diagnosticsData, setDiagnosticsData] = useState(null);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+
+  const handleRunDiagnostics = async () => {
+    try {
+      const data = await api.getDiagnostics();
+      setDiagnosticsData(data);
+      setShowDiagnostics(true);
+    } catch (err) {
+      setDiagnosticsData({
+        status: "failed",
+        errors: ["Failed to connect to the backend server. The backend might be offline or sleeping on Render. Please verify the URL: " + err.message]
+      });
+      setShowDiagnostics(true);
+    }
+  };
+
   const getFullUrl = (url) => {
     if (!url) return "";
     if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) {
@@ -681,9 +698,16 @@ export default function App() {
         <div className="glass-panel fade-in" style={{ textAlign: 'center', padding: '4rem 2rem', maxWidth: '600px', margin: '4rem auto', width: '100%' }}>
           <RefreshCw className="animate-spin" size={48} style={{ color: 'var(--primary)', margin: '0 auto 1.5rem' }} />
           <h3>Loading Employee Dashboard...</h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.5rem' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.5rem', marginBottom: '2rem' }}>
             Establishing secure connection with the facial authentication server. Please wait...
           </p>
+          <button 
+            className="btn-secondary" 
+            onClick={handleRunDiagnostics}
+            style={{ fontSize: '0.85rem', padding: '0.6rem 1.2rem' }}
+          >
+            🔧 Run System Diagnostics
+          </button>
         </div>
       )}
 
@@ -1057,9 +1081,16 @@ export default function App() {
         <div className="glass-panel fade-in" style={{ textAlign: 'center', padding: '4rem 2rem', maxWidth: '600px', margin: '4rem auto', width: '100%' }}>
           <RefreshCw className="animate-spin" size={48} style={{ color: 'var(--primary)', margin: '0 auto 1.5rem' }} />
           <h3>Loading Admin Dashboard...</h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.5rem' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.5rem', marginBottom: '2rem' }}>
             Fetching analytics metrics and daily rosters. Please wait...
           </p>
+          <button 
+            className="btn-secondary" 
+            onClick={handleRunDiagnostics}
+            style={{ fontSize: '0.85rem', padding: '0.6rem 1.2rem' }}
+          >
+            🔧 Run System Diagnostics
+          </button>
         </div>
       )}
 
@@ -1129,8 +1160,70 @@ export default function App() {
         </div>
       )}
 
+      {/* Diagnostics Report Modal */}
+      {showDiagnostics && diagnosticsData && (
+        <div className="loading-overlay" style={{ background: 'rgba(8, 12, 21, 0.85)', padding: '1rem' }}>
+          <div className="glass-panel fade-in" style={{ maxWidth: '500px', width: '100%', padding: '2rem', border: '1px solid var(--border-glass)', boxShadow: 'var(--shadow-lg)' }}>
+            <h3 style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              🔧 System Diagnostics Report
+            </h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', textAlign: 'left', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Database Connection Type:</span>
+                <strong style={{ color: 'var(--primary)' }}>{diagnosticsData.db_type ? diagnosticsData.db_type.toUpperCase() : "OFFLINE"}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Supabase Configured:</span>
+                <strong>{diagnosticsData.supabase_configured ? "✅ Yes" : "❌ No"}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Supabase Active:</span>
+                <strong>{diagnosticsData.use_supabase ? "✅ Yes" : "⚠️ Fallback to SQLite"}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>system_settings Table:</span>
+                <strong style={{ color: diagnosticsData.system_settings_table === 'OK' ? 'var(--success)' : 'var(--danger)' }}>
+                  {diagnosticsData.system_settings_table || "UNTESTED"}
+                </strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>employees Table:</span>
+                <strong style={{ color: diagnosticsData.employees_table === 'OK' ? 'var(--success)' : 'var(--danger)' }}>
+                  {diagnosticsData.employees_table || "UNTESTED"}
+                </strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>attendance_logs Table:</span>
+                <strong style={{ color: diagnosticsData.attendance_logs_table === 'OK' ? 'var(--success)' : 'var(--danger)' }}>
+                  {diagnosticsData.attendance_logs_table || "UNTESTED"}
+                </strong>
+              </div>
+            </div>
+
+            {diagnosticsData.errors && diagnosticsData.errors.length > 0 && (
+              <div className="glass-card" style={{ background: 'rgba(239, 68, 68, 0.05)', borderColor: 'rgba(239, 68, 68, 0.2)', padding: '1rem', marginBottom: '1.5rem', maxHeight: '150px', overflowY: 'auto' }}>
+                <h4 style={{ color: 'var(--danger)', fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <AlertTriangle size={14} />
+                  Detected Issues:
+                </h4>
+                <ul style={{ paddingLeft: '1.25rem', fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '0.35rem', textAlign: 'left' }}>
+                  {diagnosticsData.errors.map((err, idx) => (
+                    <li key={idx} style={{ wordBreak: 'break-all' }}>{err}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <button className="btn-primary" onClick={() => setShowDiagnostics(false)} style={{ width: '100%' }}>
+              Close Diagnostics
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Visual Footer */}
-      <footer style={{ marginTop: 'auto', borderTop: '1px solid var(--border-glass)', padding: '1.5rem 0 0.5rem 0', display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+      <footer style={{ marginTop: 'auto', borderTop: '1px solid var(--border-glass)', padding: '1.5rem 0 0.5rem 0', display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
         <span>&copy; 2026 ZepIris Inc. Enterprise Face Attendance System.</span>
         <span>Secure Model: ArcFace (InsightFace)</span>
       </footer>

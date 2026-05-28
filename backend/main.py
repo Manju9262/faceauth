@@ -103,6 +103,57 @@ class ThresholdUpdateDTO(BaseModel):
     threshold: float = Field(..., ge=0.0, le=1.0)
 
 
+@app.get("/api/diagnostics")
+def run_diagnostics():
+    status_info = {
+        "status": "success",
+        "supabase_configured": bool(config.SUPABASE_URL and config.SUPABASE_KEY),
+        "use_supabase": db.USE_SUPABASE,
+        "db_type": db.get_db_type(),
+        "errors": []
+    }
+    
+    # Test settings table
+    try:
+        if db.USE_SUPABASE:
+            db.supabase_client.table("system_settings").select("key").limit(1).execute()
+        else:
+            conn = db.get_db_connection()
+            conn.execute("SELECT key FROM system_settings LIMIT 1")
+            conn.close()
+        status_info["system_settings_table"] = "OK"
+    except Exception as e:
+        status_info["system_settings_table"] = "Error"
+        status_info["errors"].append(f"system_settings: {str(e)}")
+        
+    # Test employees table
+    try:
+        if db.USE_SUPABASE:
+            db.supabase_client.table("employees").select("id").limit(1).execute()
+        else:
+            conn = db.get_db_connection()
+            conn.execute("SELECT id FROM employees LIMIT 1")
+            conn.close()
+        status_info["employees_table"] = "OK"
+    except Exception as e:
+        status_info["employees_table"] = "Error"
+        status_info["errors"].append(f"employees: {str(e)}")
+        
+    # Test attendance_logs table
+    try:
+        if db.USE_SUPABASE:
+            db.supabase_client.table("attendance_logs").select("id").limit(1).execute()
+        else:
+            conn = db.get_db_connection()
+            conn.execute("SELECT id FROM attendance_logs LIMIT 1")
+            conn.close()
+        status_info["attendance_logs_table"] = "OK"
+    except Exception as e:
+        status_info["attendance_logs_table"] = "Error"
+        status_info["errors"].append(f"attendance_logs: {str(e)}")
+        
+    return status_info
+
 # --- AUTH ENDPOINTS ---
 
 @app.post("/api/auth/register-employee")
