@@ -318,6 +318,40 @@ def mark_attendance(data: MarkAttendanceDTO, current_user: dict = Depends(get_cu
 
 # --- EMPLOYEE DASHBOARD ENDPOINTS ---
 
+def calculate_active_hours_today(success_logs_today: list) -> float:
+    """
+    Calculates active hours today from a list of success logs for an employee today.
+    The list must be sorted oldest to newest.
+    """
+    total_seconds = 0.0
+    start_time = None
+    
+    # Process sequential pairs
+    for i, log in enumerate(success_logs_today):
+        ts_str = log["timestamp"].replace("Z", "")
+        try:
+            log_time = datetime.fromisoformat(ts_str)
+        except Exception:
+            continue
+            
+        is_checkin = (i % 2 == 0) # 1st is checkin, 2nd checkout, etc.
+        
+        if is_checkin:
+            start_time = log_time
+        else:
+            if start_time:
+                total_seconds += (log_time - start_time).total_seconds()
+                start_time = None
+                
+    # If the user is currently checked in, calculate time up to current time (naive UTC)
+    if start_time:
+        now = datetime.utcnow()
+        if now > start_time:
+            total_seconds += (now - start_time).total_seconds()
+            
+    return round(total_seconds / 3600.0, 2)
+
+
 @app.get("/api/employee/dashboard")
 def get_employee_dashboard(current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "employee":
@@ -334,12 +368,19 @@ def get_employee_dashboard(current_user: dict = Depends(get_current_user)):
     today = date.today().isoformat()
     success_logs_today = [log for log in logs if log["status"] == "success" and log["timestamp"].startswith(today)]
     
+    # success_logs_today is fetched newest first, we reverse it to get oldest first
+    success_logs_today_ordered = list(success_logs_today)
+    success_logs_today_ordered.reverse()
+    
     if len(success_logs_today) == 0:
         shift_status = "Not Started"
     elif len(success_logs_today) % 2 == 1:
         shift_status = "Checked In"
     else:
         shift_status = "Checked Out"
+        
+    # Calculate active hours today
+    active_hours_today = calculate_active_hours_today(success_logs_today_ordered)
         
     return {
         "status": "success",
@@ -350,6 +391,7 @@ def get_employee_dashboard(current_user: dict = Depends(get_current_user)):
             "registered_at": employee["created_at"]
         },
         "shift_status": shift_status,
+        "active_hours_today": active_hours_today,
         "logs": logs
     }
 
@@ -369,6 +411,7 @@ def get_admin_dashboard(current_user: dict = Depends(get_current_user)):
         "stats": {
             "total_employees": stats["total_employees"],
             "active_today": stats["active_today"],
+            "checked_out_today": stats.get("checked_out_today", 0),
             "absent_today": stats["absent_today"]
         },
         "threshold": threshold,
@@ -382,6 +425,44 @@ def get_admin_employees(search: Optional[str] = None, current_user: dict = Depen
         raise HTTPException(status_code=403, detail="Access denied. Admin access only.")
     
     employees = db.list_employees(search_query=search)
+    
+    # Calculate today's active hours for each employee in the list
+    today = date.today().isoformat()
+    if db.USE_SUPABASE:
+        start_of_today = f"{today}T00:00:00"
+        try:
+            logs_res = db.supabase_client.table("attendance_logs").select("employee_id, timestamp, status").eq("status", "success").gte("timestamp", start_of_today).execute()
+            today_logs = logs_res.data or []
+        except Exception:
+            today_logs = []
+    else:
+        try:
+            conn = db.get_db_connection()
+            rows = conn.execute("""
+            SELECT employee_id, timestamp, status 
+            FROM attendance_logs 
+            WHERE timestamp LIKE ? AND status = 'success'
+            """, (f"{today}%",)).fetchall()
+            today_logs = [dict(r) for r in rows]
+            conn.close()
+        except Exception:
+            today_logs = []
+            
+    # Group logs by employee
+    logs_by_emp = {}
+    for log in today_logs:
+        emp_id = log["employee_id"]
+        if emp_id not in logs_by_emp:
+            logs_by_emp[emp_id] = []
+        logs_by_emp[emp_id].append(log)
+        
+    # Sort chronologically and calculate hours for each employee
+    for emp in employees:
+        emp_id = emp["id"]
+        emp_logs = logs_by_emp.get(emp_id, [])
+        emp_logs.sort(key=lambda x: x["timestamp"])
+        emp["active_hours_today"] = calculate_active_hours_today(emp_logs)
+        
     return {
         "status": "success",
         "employees": employees

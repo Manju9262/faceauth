@@ -1,10 +1,11 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Camera, RefreshCw, Check, AlertCircle } from 'lucide-react';
 
-export default function CameraCapture({ onCapture, buttonText = "Capture Photo" }) {
+export default function CameraCapture({ onCapture, buttonText = "Capture Photo", loading = false }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const [stream, setStream] = useState(null);
+  const streamRef = useRef(null);
   const [capturedImg, setCapturedImg] = useState(null);
   
   // MediaPipe state
@@ -107,6 +108,7 @@ export default function CameraCapture({ onCapture, buttonText = "Capture Photo" 
 
       const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
       setStream(mediaStream);
+      streamRef.current = mediaStream;
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
@@ -154,10 +156,11 @@ export default function CameraCapture({ onCapture, buttonText = "Capture Photo" 
       activeCameraRef.current = null;
     }
     
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
     }
+    setStream(null);
   };
 
   const processFaceResults = (results) => {
@@ -356,11 +359,11 @@ export default function CameraCapture({ onCapture, buttonText = "Capture Photo" 
             type="button"
             className="btn-primary"
             onClick={handleCapture}
-            disabled={!isFaceValid || !stream}
+            disabled={!isFaceValid || !stream || loading}
             style={{ width: '100%' }}
           >
-            <Camera size={18} />
-            {buttonText}
+            {loading ? <RefreshCw className="animate-spin" size={18} /> : <Camera size={18} />}
+            {loading ? "Processing..." : buttonText}
           </button>
         ) : (
           <>
@@ -368,6 +371,7 @@ export default function CameraCapture({ onCapture, buttonText = "Capture Photo" 
               type="button"
               className="btn-secondary"
               onClick={handleRetake}
+              disabled={loading}
               style={{ flex: 1 }}
             >
               <RefreshCw size={16} />
@@ -377,10 +381,20 @@ export default function CameraCapture({ onCapture, buttonText = "Capture Photo" 
               type="button"
               className="btn-primary"
               onClick={handleConfirm}
+              disabled={loading}
               style={{ flex: 1 }}
             >
-              <Check size={16} />
-              Confirm Photo
+              {loading ? (
+                <>
+                  <RefreshCw className="animate-spin" size={16} />
+                  Verifying...
+                </>
+              ) : (
+                <>
+                  <Check size={16} />
+                  Confirm Photo
+                </>
+              )}
             </button>
           </>
         )}

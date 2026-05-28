@@ -10,6 +10,7 @@ import {
   Sliders, 
   CheckCircle2, 
   XCircle, 
+  Check,
   Camera, 
   Calendar,
   Lock,
@@ -44,6 +45,8 @@ export default function App() {
   // Notification Toast states
   const [toast, setToast] = useState(null); // { type: 'success'|'error'|'info', message: '' }
   const [loading, setLoading] = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState('Processing...');
+  const [confirmationData, setConfirmationData] = useState(null);
 
   // Auto load logged-in user on start
   useEffect(() => {
@@ -73,6 +76,7 @@ export default function App() {
   const handleLogin = async (e) => {
     e.preventDefault();
     if (!email || !password) return;
+    setLoadingMsg("Authenticating your credentials...");
     setLoading(true);
     try {
       const data = await api.login(email, password, role);
@@ -99,6 +103,7 @@ export default function App() {
       showToast("Please fill in all details and capture your selfie.", "error");
       return;
     }
+    setLoadingMsg("Creating profile & generating biometric face embedding...");
     setLoading(true);
     try {
       await api.registerEmployee(regName, regEmail, regPassword, regSelfie);
@@ -118,12 +123,20 @@ export default function App() {
   };
 
   const handleMarkAttendance = async (selfieBase64) => {
+    setLoadingMsg("Analyzing selfie & matching face biometric signature...");
     setLoading(true);
     try {
       const result = await api.markAttendance(selfieBase64, navigator.userAgent.includes("Mobi") ? "Mobile Browser" : "Desktop Browser");
       showToast("Attendance marked successfully!", "success");
-      setView('employee_dashboard');
-      loadEmployeeDashboard();
+      
+      // Save details for the confirmation page
+      setConfirmationData({
+        name: currentUser.name,
+        action: result.message.includes("Check Out") ? "Check Out" : "Check In",
+        similarity_score: result.similarity_score,
+        timestamp: new Date().toISOString()
+      });
+      setView('attendance_confirmation');
     } catch (err) {
       showToast(err.message, "error");
       // Reload dashboard in background to show failed log
@@ -174,6 +187,7 @@ export default function App() {
   };
 
   const handleSaveThreshold = async () => {
+    setLoadingMsg("Saving matchmaking threshold settings...");
     setLoading(true);
     try {
       await api.updateThreshold(threshold);
@@ -385,6 +399,7 @@ export default function App() {
                 <CameraCapture 
                   onCapture={(base64) => setRegSelfie(base64)} 
                   buttonText="Capture Registration Selfie"
+                  loading={loading}
                 />
               </div>
             </div>
@@ -455,14 +470,14 @@ export default function App() {
 
             {/* Right Col: Shift & Checkin action */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              {/* Shift status card */}
-              <div className="glass-panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
+              {/* Shift status & Hours card */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
+                <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                   <h4 style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', marginBottom: '0.25rem' }}>
                     Shift Status (Today)
                   </h4>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <h2 style={{ fontSize: '1.8rem' }}>{employeeData.shift_status}</h2>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <h2 style={{ fontSize: '1.6rem' }}>{employeeData.shift_status}</h2>
                     {employeeData.shift_status === 'Checked In' && (
                       <span className="badge badge-success">Active</span>
                     )}
@@ -475,10 +490,28 @@ export default function App() {
                   </div>
                 </div>
 
+                <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+                  <h4 style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase', marginBottom: '0.25rem' }}>
+                    Active Hours (Today)
+                  </h4>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.25rem' }}>
+                    <h2 style={{ fontSize: '2rem', color: 'var(--primary)' }}>{employeeData.active_hours_today !== undefined ? employeeData.active_hours_today : '0.00'}</h2>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>hours</span>
+                  </div>
+                  <Clock size={48} style={{ position: 'absolute', right: '-10px', bottom: '-10px', opacity: 0.05, strokeWidth: 1.5 }} />
+                </div>
+              </div>
+
+              {/* Action Button Card */}
+              <div className="glass-panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 2rem', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: '500' }}>Ready to update your status?</h4>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Perform face verification to toggle shift checkin/checkout</p>
+                </div>
                 <button 
                   className="btn-primary" 
                   onClick={() => setView('mark_attendance')}
-                  style={{ padding: '1rem 2rem' }}
+                  style={{ padding: '0.8rem 1.5rem' }}
                 >
                   <Camera size={18} />
                   {employeeData.shift_status === 'Not Started' && 'Check In'}
@@ -573,6 +606,7 @@ export default function App() {
           <CameraCapture 
             onCapture={handleMarkAttendance} 
             buttonText="Verify & Mark Attendance"
+            loading={loading}
           />
 
           <button 
@@ -629,6 +663,90 @@ export default function App() {
             
             {/* Left Col: Config & Employee Directory */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              {/* Donut Chart Panel */}
+              <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <TrendingUp size={18} style={{ color: 'var(--primary)' }} />
+                  Shift Distribution (Today)
+                </h3>
+                {(() => {
+                  const active = adminData.stats.active_today || 0;
+                  const inactive = adminData.stats.checked_out_today || 0;
+                  const pending = adminData.stats.absent_today || 0;
+                  const total = active + inactive + pending || 1;
+                  
+                  const activePct = active / total;
+                  const inactivePct = inactive / total;
+                  const pendingPct = pending / total;
+
+                  const circ = 251.327; // 2 * Math.PI * 40
+                  
+                  const activeStroke = activePct * circ;
+                  const inactiveStroke = inactivePct * circ;
+                  const pendingStroke = pendingPct * circ;
+
+                  const activeOffset = 0;
+                  const inactiveOffset = circ - activeStroke;
+                  const pendingOffset = circ - activeStroke - inactiveStroke;
+
+                  return (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                      <div style={{ position: 'relative', width: '120px', height: '120px' }}>
+                        <svg width="100%" height="100%" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
+                          <circle cx="50" cy="50" r="40" fill="transparent" stroke="rgba(255,255,255,0.03)" strokeWidth="10" />
+                          
+                          {pending > 0 && (
+                            <circle cx="50" cy="50" r="40" fill="transparent" stroke="var(--danger)" strokeWidth="10"
+                              strokeDasharray={`${pendingStroke} ${circ - pendingStroke}`}
+                              strokeDashoffset={pendingOffset}
+                              strokeLinecap="round"
+                              style={{ transition: 'stroke-dasharray 0.5s ease' }}
+                            />
+                          )}
+
+                          {inactive > 0 && (
+                            <circle cx="50" cy="50" r="40" fill="transparent" stroke="var(--text-muted)" strokeWidth="10"
+                              strokeDasharray={`${inactiveStroke} ${circ - inactiveStroke}`}
+                              strokeDashoffset={inactiveOffset}
+                              strokeLinecap="round"
+                              style={{ transition: 'stroke-dasharray 0.5s ease' }}
+                            />
+                          )}
+
+                          {active > 0 && (
+                            <circle cx="50" cy="50" r="40" fill="transparent" stroke="var(--success)" strokeWidth="10"
+                              strokeDasharray={`${activeStroke} ${circ - activeStroke}`}
+                              strokeDashoffset={activeOffset}
+                              strokeLinecap="round"
+                              style={{ transition: 'stroke-dasharray 0.5s ease' }}
+                            />
+                          )}
+                        </svg>
+                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                          <span style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{active + inactive}</span>
+                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>PRESENT</span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1, minWidth: '120px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
+                          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--success)' }} />
+                          <span>Active: <strong>{active}</strong></span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
+                          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--text-muted)' }} />
+                          <span>Checked Out: <strong>{inactive}</strong></span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
+                          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--danger)' }} />
+                          <span>Pending: <strong>{pending}</strong></span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
               {/* Threshold panel */}
               <div className="glass-panel">
                 <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -692,9 +810,15 @@ export default function App() {
                             e.target.src = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=40&q=80";
                           }}
                         />
-                        <div style={{ overflow: 'hidden' }}>
+                        <div style={{ overflow: 'hidden', flex: 1 }}>
                           <h4 style={{ fontSize: '0.9rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{emp.name}</h4>
                           <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{emp.email}</p>
+                        </div>
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--primary)' }}>
+                            {emp.active_hours_today !== undefined ? `${emp.active_hours_today} hrs` : '0.00 hrs'}
+                          </span>
+                          <span style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)' }}>today</span>
                         </div>
                       </div>
                     ))}
@@ -804,6 +928,72 @@ export default function App() {
         </div>
       )}
       
+      {/* 6. ATTENDANCE CONFIRMATION PANEL */}
+      {view === 'attendance_confirmation' && confirmationData && (
+        <div className="glass-panel confirmation-card fade-in" style={{ maxWidth: '450px', margin: '4rem auto', width: '100%', textAlign: 'center' }}>
+          <div className="checkmark-wrapper">
+            <div className="checkmark-circle">
+              <Check size={48} className="checkmark-icon" />
+            </div>
+          </div>
+          
+          <h2 style={{ marginTop: '1.5rem', marginBottom: '0.5rem', color: 'var(--text-main)' }}>
+            {confirmationData.action === 'Check In' ? 'Checked In Successfully!' : 'Checked Out Successfully!'}
+          </h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '2rem' }}>
+            Your shift status has been recorded in the database.
+          </p>
+
+          <div className="glass-card" style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem', background: 'rgba(255, 255, 255, 0.01)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Employee</span>
+              <strong>{confirmationData.name}</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Action</span>
+              <span className={`badge ${confirmationData.action === 'Check In' ? 'badge-success' : 'badge-warning'}`} style={{ textTransform: 'none' }}>
+                {confirmationData.action}
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Timestamp</span>
+              <strong>{formatDate(confirmationData.timestamp)}</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Similarity Score</span>
+              <strong style={{ color: 'var(--success)' }}>
+                {(confirmationData.similarity_score * 100).toFixed(1)}%
+              </strong>
+            </div>
+          </div>
+
+          <button 
+            className="btn-primary" 
+            onClick={() => {
+              setView('employee_dashboard');
+              loadEmployeeDashboard();
+            }}
+            style={{ width: '100%' }}
+          >
+            Go to Dashboard
+          </button>
+        </div>
+      )}
+
+      {/* Fullscreen Loading Overlay */}
+      {loading && view !== 'login' && (
+        <div className="loading-overlay">
+          <div className="loading-card glass-panel">
+            <div className="scanner-line-wrapper">
+              <div className="scanner-laser" />
+            </div>
+            <div className="spinner-glow" />
+            <h3 style={{ marginTop: '1.5rem', marginBottom: '0.5rem' }}>{loadingMsg}</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Please keep this tab active. This may take a few seconds.</p>
+          </div>
+        </div>
+      )}
+
       {/* Visual Footer */}
       <footer style={{ marginTop: 'auto', borderTop: '1px solid var(--border-glass)', padding: '1.5rem 0 0.5rem 0', display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
         <span>&copy; 2026 ZepIris Inc. Enterprise Face Attendance System.</span>

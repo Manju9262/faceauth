@@ -380,7 +380,8 @@ def get_dashboard_stats():
                 success_counts[emp_id] = success_counts.get(emp_id, 0) + 1
                 
         active_today = sum(1 for emp_id, count in success_counts.items() if count % 2 == 1)
-        absent_today = max(0, total_employees - active_today)
+        checked_out_today = sum(1 for emp_id, count in success_counts.items() if count % 2 == 0 and count > 0)
+        absent_today = max(0, total_employees - active_today - checked_out_today)
         
         # Get 10 recent logs
         recent_logs = get_attendance_logs(limit=10)
@@ -388,6 +389,7 @@ def get_dashboard_stats():
         return {
             "total_employees": total_employees,
             "active_today": active_today,
+            "checked_out_today": checked_out_today,
             "absent_today": absent_today,
             "recent_logs": recent_logs
         }
@@ -406,8 +408,9 @@ def get_dashboard_stats():
         GROUP BY employee_id
         """, (f"{today}%",)).fetchall()
         active_today = sum(1 for r in rows if r['cnt'] % 2 == 1)
+        checked_out_today = sum(1 for r in rows if r['cnt'] % 2 == 0 and r['cnt'] > 0)
         
-        absent_today = max(0, total_employees - active_today)
+        absent_today = max(0, total_employees - active_today - checked_out_today)
         conn.close()
         
         # Recent logs
@@ -416,6 +419,7 @@ def get_dashboard_stats():
         return {
             "total_employees": total_employees,
             "active_today": active_today,
+            "checked_out_today": checked_out_today,
             "absent_today": absent_today,
             "recent_logs": recent_logs
         }
